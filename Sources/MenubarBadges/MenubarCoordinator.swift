@@ -11,6 +11,7 @@ final class MenubarCoordinator: NSObject, ObservableObject {
     let settings: SettingsStore
     let monitor: DockBadgeMonitor
     let installedApps: InstalledAppsService
+    let updater: AppUpdater
 
     @Published var selectedBundleId: String?
 
@@ -22,15 +23,17 @@ final class MenubarCoordinator: NSObject, ObservableObject {
     init(
         settings: SettingsStore = SettingsStore(),
         monitor: DockBadgeMonitor = DockBadgeMonitor(),
-        installedApps: InstalledAppsService = InstalledAppsService()
+        installedApps: InstalledAppsService = InstalledAppsService(),
+        updater: AppUpdater = AppUpdater()
     ) {
         self.settings = settings
         self.monitor = monitor
         self.installedApps = installedApps
+        self.updater = updater
         super.init()
     }
 
-    func start(openSettingsIfEmpty: Bool = true) {
+    func start(openSettingsIfEmpty: Bool = true, enableAutoUpdateChecks: Bool = true) {
         bindState()
         syncStatusItems()
         syncControlStatusItem()
@@ -39,6 +42,10 @@ final class MenubarCoordinator: NSObject, ObservableObject {
             monitoredApps: settings.monitoredApps,
             pollInterval: settings.preferences.pollIntervalSeconds
         )
+
+        if enableAutoUpdateChecks {
+            updater.configureAutomaticChecks(enabled: settings.preferences.automaticallyCheckForUpdates)
+        }
 
         if openSettingsIfEmpty && settings.monitoredApps.isEmpty {
             showSettingsWindow()
@@ -108,6 +115,7 @@ final class MenubarCoordinator: NSObject, ObservableObject {
     func tearDown() {
         monitor.stop()
         installedApps.stop()
+        updater.stop()
         for controller in statusControllers.values {
             controller.destroy()
         }
@@ -138,6 +146,7 @@ final class MenubarCoordinator: NSObject, ObservableObject {
                 guard let self else { return }
                 self.syncControlStatusItem()
                 self.monitor.updatePollInterval(prefs.pollIntervalSeconds)
+                self.updater.configureAutomaticChecks(enabled: prefs.automaticallyCheckForUpdates)
                 self.renderAllStatusItems()
             }
             .store(in: &cancellables)
@@ -181,6 +190,13 @@ final class MenubarCoordinator: NSObject, ObservableObject {
             }
             controller.onRefreshNow = { [weak self] in
                 self?.monitor.pollNow()
+            }
+            controller.availableUpdateMenuTitle = { [weak self] in
+                guard let update = self?.updater.availableUpdate else { return nil }
+                return "Update Available (v\(update.currentVersion) → v\(update.latestVersion))…"
+            }
+            controller.onCheckForUpdates = { [weak self] in
+                self?.triggerUserUpdateAction()
             }
             controller.onRemoveApp = { [weak self] targetApp in
                 self?.removeMonitoredApp(bundleId: targetApp.bundleId)
@@ -246,6 +262,16 @@ final class MenubarCoordinator: NSObject, ObservableObject {
             refreshItem.target = self
             menu.addItem(refreshItem)
 
+            let updateTitle: String
+            if let update = updater.availableUpdate {
+                updateTitle = "Update Available (v\(update.currentVersion) → v\(update.latestVersion))…"
+            } else {
+                updateTitle = "Check for Updates…"
+            }
+            let updateItem = NSMenuItem(title: updateTitle, action: #selector(menuCheckForUpdatesFromControl), keyEquivalent: "")
+            updateItem.target = self
+            menu.addItem(updateItem)
+
             menu.addItem(.separator())
 
             let quitItem = NSMenuItem(title: "Quit Menubar Badges", action: #selector(menuQuitFromControl), keyEquivalent: "q")
@@ -266,6 +292,20 @@ final class MenubarCoordinator: NSObject, ObservableObject {
 
     @objc private func menuRefreshFromControl() {
         monitor.pollNow()
+    }
+
+    @objc private func menuCheckForUpdatesFromControl() {
+        triggerUserUpdateAction()
+    }
+
+    func triggerUserUpdateAction() {
+        if let available = updater.availableUpdate {
+            updater.promptAndInstall(update: available)
+        } else {
+            Task { @MainActor in
+                await updater.checkForUpdates(userInitiated: true)
+            }
+        }
     }
 
     @objc private func menuQuitFromControl() {

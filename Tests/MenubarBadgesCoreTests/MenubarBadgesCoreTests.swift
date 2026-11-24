@@ -221,5 +221,70 @@ final class MenubarBadgesCoreTests: XCTestCase {
         XCTAssertEqual(decoded.iconSize, AppPreferences.defaultIconSize)
         XCTAssertEqual(decoded.badgeSize, AppPreferences.defaultBadgeSize)
         XCTAssertEqual(decoded.dotSize, AppPreferences.defaultDotSize)
+        XCTAssertTrue(decoded.automaticallyCheckForUpdates)
+    }
+
+    // MARK: - Updater Version & GitHub Release Evaluation Tests
+
+    func testAppVersionParsingAndComparison() {
+        XCTAssertEqual(AppVersion(parsing: "v0.2.1"), AppVersion(major: 0, minor: 2, patch: 1))
+        XCTAssertEqual(AppVersion(parsing: "0.2.1"), AppVersion(major: 0, minor: 2, patch: 1))
+        XCTAssertEqual(AppVersion(parsing: "1.2"), AppVersion(major: 1, minor: 2, patch: 0))
+        XCTAssertNil(AppVersion(parsing: ""))
+        XCTAssertNil(AppVersion(parsing: "not-a-version"))
+
+        XCTAssertLessThan(AppVersion(parsing: "0.2.1")!, AppVersion(parsing: "0.3.0")!)
+        XCTAssertLessThan(AppVersion(parsing: "0.3.0-beta.1")!, AppVersion(parsing: "0.3.0")!)
+        XCTAssertLessThan(AppVersion(parsing: "0.9.9")!, AppVersion(parsing: "1.0.0")!)
+        XCTAssertFalse(AppVersion(parsing: "0.3.0")! < AppVersion(parsing: "v0.3.0")!)
+    }
+
+    func testGitHubUpdateEvaluatorDetectsUpgradeAndUpToDate() throws {
+        let release = GitHubRelease(
+            tagName: "v0.3.0",
+            name: "0.3.0",
+            body: "Added built-in GitHub updater.",
+            htmlURL: URL(string: "https://github.com/gempir/menubar-badges/releases/tag/v0.3.0")!,
+            assets: [
+                GitHubRelease.Asset(
+                    name: "MenubarBadges-0.3.0.dmg",
+                    browserDownloadURL: URL(string: "https://github.com/gempir/menubar-badges/releases/download/v0.3.0/MenubarBadges-0.3.0.dmg")!,
+                    size: 1_500_000,
+                    digest: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                )
+            ]
+        )
+
+        let upgradeResult = try GitHubUpdateEvaluator.evaluate(
+            release: release,
+            currentVersion: AppVersion(major: 0, minor: 2, patch: 1)
+        )
+        guard case .updateAvailable(let availability) = upgradeResult else {
+            return XCTFail("Expected .updateAvailable")
+        }
+        XCTAssertEqual(availability.currentVersion, AppVersion(major: 0, minor: 2, patch: 1))
+        XCTAssertEqual(availability.latestVersion, AppVersion(major: 0, minor: 3, patch: 0))
+        XCTAssertEqual(availability.dmgAssetName, "MenubarBadges-0.3.0.dmg")
+        XCTAssertEqual(availability.expectedSHA256, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+
+        let upToDateResult = try GitHubUpdateEvaluator.evaluate(
+            release: release,
+            currentVersion: AppVersion(major: 0, minor: 3, patch: 0)
+        )
+        XCTAssertEqual(
+            upToDateResult,
+            .upToDate(current: AppVersion(major: 0, minor: 3, patch: 0), latest: AppVersion(major: 0, minor: 3, patch: 0))
+        )
+    }
+
+    func testSHA256VerificationPassAndFail() throws {
+        let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent("sha-test-\(UUID().uuidString).bin")
+        try Data("menubar-badges".utf8).write(to: tempFile)
+        defer { try? FileManager.default.removeItem(at: tempFile) }
+
+        let hash = try GitHubUpdateEvaluator.sha256Hex(forFileAt: tempFile)
+        XCTAssertEqual(hash.count, 64)
+        XCTAssertNoThrow(try GitHubUpdateEvaluator.verifyFileSHA256(at: tempFile, expectedHex: hash))
+        XCTAssertThrowsError(try GitHubUpdateEvaluator.verifyFileSHA256(at: tempFile, expectedHex: String(repeating: "0", count: 64)))
     }
 }

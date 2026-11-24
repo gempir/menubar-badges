@@ -15,6 +15,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        if CommandLine.arguments.contains("--verify-updater") {
+            runLiveUpdaterVerification()
+            return
+        }
+
         if let idx = CommandLine.arguments.firstIndex(of: "--render-screenshots"),
            idx + 1 < CommandLine.arguments.count {
             let outputDir = CommandLine.arguments[idx + 1]
@@ -62,7 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             showAttentionArrow: true
         )
         store.addApp(testApp)
-        coordinator.start(openSettingsIfEmpty: false)
+        coordinator.start(openSettingsIfEmpty: false, enableAutoUpdateChecks: false)
 
         let ownPID = ProcessInfo.processInfo.processIdentifier
         let initialFrontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unknown"
@@ -146,6 +151,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 for failure in focusStealEvents {
                     fputs("FOCUS_VERIFY FAIL: \(failure)\n", stderr)
                 }
+                exit(1)
+            }
+        }
+    }
+
+    // MARK: - Live GitHub Updater Verification
+
+    /// Verifies live GitHub release lookup, version comparison, DMG download, SHA-256 verification,
+    /// DMG mounting, bundle ID & code signature verification into a temporary directory (non-destructive).
+    private func runLiveUpdaterVerification() {
+        Task { @MainActor in
+            do {
+                let olderUpdater = AppUpdater(currentVersion: AppVersion(major: 0, minor: 1, patch: 0))
+                let checkResult = try await olderUpdater.fetchLatestReleaseCheck()
+                guard case .updateAvailable(let update) = checkResult else {
+                    fputs("UPDATER_VERIFY FAIL: Expected update available from 0.1.0\n", stderr)
+                    exit(1)
+                }
+                print("UPDATER_VERIFY detected upgrade: v\(update.currentVersion) -> v\(update.latestVersion) (\(update.dmgAssetName))")
+
+                let newerUpdater = AppUpdater(currentVersion: AppVersion(major: 99, minor: 0, patch: 0))
+                let upToDateResult = try await newerUpdater.fetchLatestReleaseCheck()
+                guard case .upToDate = upToDateResult else {
+                    fputs("UPDATER_VERIFY FAIL: Expected upToDate from 99.0.0\n", stderr)
+                    exit(1)
+                }
+
+                // Download the latest release DMG into a temp directory and verify SHA-256 + mount + codesign.
+                let tempDir = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("MenubarBadges-UpdaterVerify-\(UUID().uuidString)", isDirectory: true)
+                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                defer { try? FileManager.default.removeItem(at: tempDir) }
+
+                let (downloadedTemp, response) = try await URLSession.shared.download(from: update.dmgDownloadURL)
+                if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                    throw UpdateError.httpError(http.statusCode)
+                }
+                let localDMG = tempDir.appendingPathComponent(update.dmgAssetName)
+                try FileManager.default.moveItem(at: downloadedTemp, to: localDMG)
+
+                if let sha256 = update.expectedSHA256 {
+                    try GitHubUpdateEvaluator.verifyFileSHA256(at: localDMG, expectedHex: sha256)
+                    print("UPDATER_VERIFY SHA-256 verified: \(sha256.prefix(16))...")
+                }
+
+                let stagedApp = try AppUpdater.extractAndVerifyApp(fromDMG: localDMG, stagingParent: tempDir)
+                let stagedVersion = Bundle(url: stagedApp)?.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+                print("UPDATER_VERIFY PASS: Extracted & verified \(stagedApp.lastPathComponent) v\(stagedVersion)")
+                exit(0)
+            } catch {
+                fputs("UPDATER_VERIFY FAIL: \(error.localizedDescription)\n", stderr)
                 exit(1)
             }
         }

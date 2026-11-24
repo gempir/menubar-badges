@@ -34,6 +34,7 @@ Live previews and per-app overrides (dark mode invert, monochrome style, custom 
   - Hide icons when the app isn't running or when there are no unread notifications.
   - Gray out icons when idle, invert icons in Dark Mode, monochrome mode, or upload custom app icons.
   - Optional non-activating full-screen alert banner and per-app pulsing attention arrow.
+  - Built-in GitHub Release updater (checks latest release, asks to confirm exact `from → to` version upgrade beforehand, verifies SHA-256 + code signature, installs and relaunches).
   - Launch at login (`SMAppService`).
 
 ## Install
@@ -52,10 +53,10 @@ Requires macOS 13+ and Swift 6 / Xcode.
 swift test
 
 # Build release MenubarBadges.app into ./dist/MenubarBadges.app
-./Scripts/build-app.sh 0.2.1
+./Scripts/build-app.sh 0.3.0
 
-# Build distributable DMG into ./dist/MenubarBadges-0.2.1.dmg
-./Scripts/build-dmg.sh 0.2.1
+# Build distributable DMG into ./dist/MenubarBadges-0.3.0.dmg
+./Scripts/build-dmg.sh 0.3.0
 
 # Run live macOS focus-safety verification
 ./dist/MenubarBadges.app/Contents/MacOS/MenubarBadges --verify-focus-safety

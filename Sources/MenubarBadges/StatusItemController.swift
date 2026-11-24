@@ -36,6 +36,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     var onActivateApp: ((MonitoredApp) -> Void)?
     var onOpenSettings: ((MonitoredApp) -> Void)?
     var onRefreshNow: (() -> Void)?
+    var onCheckForUpdates: (() -> Void)?
+    var availableUpdateMenuTitle: (() -> String?)?
     var onRemoveApp: ((MonitoredApp) -> Void)?
     var onQuit: (() -> Void)?
 
@@ -250,6 +252,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         refreshItem.target = self
         menu.addItem(refreshItem)
 
+        let updateTitle = availableUpdateMenuTitle?() ?? "Check for Updates…"
+        let updateItem = NSMenuItem(title: updateTitle, action: #selector(menuCheckForUpdates), keyEquivalent: "")
+        updateItem.target = self
+        menu.addItem(updateItem)
+
         menu.addItem(.separator())
 
         let removeItem = NSMenuItem(title: "Stop Monitoring \(app.appName)", action: #selector(menuRemoveApp), keyEquivalent: "")
@@ -283,6 +290,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func menuRefreshNow() {
         onRefreshNow?()
+    }
+
+    @objc private func menuCheckForUpdates() {
+        onCheckForUpdates?()
     }
 
     @objc private func menuRemoveApp() {

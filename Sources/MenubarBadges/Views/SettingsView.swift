@@ -212,6 +212,7 @@ private struct GeneralSettingsDetailView: View {
     @ObservedObject var coordinator: MenubarCoordinator
     @ObservedObject var settings: SettingsStore
     @ObservedObject var monitor: DockBadgeMonitor
+    @ObservedObject var updater: AppUpdater
 
     @State private var launchAtLogin: Bool = false
 
@@ -219,12 +220,16 @@ private struct GeneralSettingsDetailView: View {
         self.coordinator = coordinator
         self.settings = coordinator.settings
         self.monitor = coordinator.monitor
+        self.updater = coordinator.updater
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 headerSection
+                if let update = updater.availableUpdate {
+                    updateAvailableBanner(update)
+                }
                 displayStyleSection
                 visibilitySection
                 behaviorSection
@@ -235,6 +240,39 @@ private struct GeneralSettingsDetailView: View {
         .onAppear {
             launchAtLogin = coordinator.isLaunchAtLoginEnabled()
         }
+    }
+
+    private func updateAvailableBanner(_ update: UpdateAvailability) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "arrow.down.circle.fill")
+                .font(.title2)
+                .foregroundStyle(.blue)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Update Available: v\(update.currentVersion.description) → v\(update.latestVersion.description)")
+                    .font(.headline)
+                Text("A newer GitHub release is ready. You will be asked to confirm before upgrading.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button("Upgrade…") {
+                updater.promptAndInstall(update: update)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.blue.opacity(0.12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.blue.opacity(0.35), lineWidth: 1)
+                )
+        )
     }
 
     private var headerSection: some View {
@@ -426,6 +464,8 @@ private struct GeneralSettingsDetailView: View {
                         coordinator.setLaunchAtLogin(newValue)
                     }
 
+                Toggle("Automatically check for GitHub updates", isOn: $settings.preferences.automaticallyCheckForUpdates)
+
                 Toggle("Show floating alert when a new badge arrives in full-screen mode", isOn: $settings.preferences.showAlertInFullScreen)
                 Text("Uses a non-activating borderless panel that never steals keyboard focus or defocuses your active window on macOS 27.")
                     .font(.caption)
@@ -453,16 +493,80 @@ private struct GeneralSettingsDetailView: View {
     }
 
     private var footerSection: some View {
-        HStack {
-            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.2.1"
+        HStack(spacing: 12) {
+            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.3.0"
             Text("Version \(version)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            updateStatusControls
+
             Spacer()
+
             if let url = URL(string: "https://github.com/gempir/menubar-badges") {
                 Link("GitHub Repository", destination: url)
                     .font(.caption)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var updateStatusControls: some View {
+        switch updater.state {
+        case .checking:
+            HStack(spacing: 5) {
+                ProgressView().controlSize(.small)
+                Text("Checking…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        case .downloading(let update):
+            HStack(spacing: 5) {
+                ProgressView().controlSize(.small)
+                Text("Downloading v\(update.latestVersion.description)…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        case .installing(let update):
+            HStack(spacing: 5) {
+                ProgressView().controlSize(.small)
+                Text("Installing v\(update.latestVersion.description)…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        case .updateAvailable(let update):
+            Button("Upgrade v\(update.currentVersion.description) → v\(update.latestVersion.description)…") {
+                updater.promptAndInstall(update: update)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        case .upToDate:
+            HStack(spacing: 8) {
+                Button("Check for Updates") {
+                    Task { await updater.checkForUpdates(userInitiated: true) }
+                }
+                .controlSize(.small)
+                Text("Up to date")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        case .failed(let message):
+            HStack(spacing: 8) {
+                Button("Retry Update Check") {
+                    Task { await updater.checkForUpdates(userInitiated: true) }
+                }
+                .controlSize(.small)
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        case .idle:
+            Button("Check for Updates") {
+                Task { await updater.checkForUpdates(userInitiated: true) }
+            }
+            .controlSize(.small)
         }
     }
 }

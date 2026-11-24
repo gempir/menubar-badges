@@ -201,6 +201,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public var showAlertInFullScreen: Bool = true
     public var hideFrontmostAppOnClick: Bool = true
     public var alwaysShowControlIcon: Bool = false
+    public var automaticallyCheckForUpdates: Bool = true
     public var pollIntervalSeconds: Double = 1.0
 
     public init() {}
@@ -218,6 +219,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         showAlertInFullScreen = try container.decodeIfPresent(Bool.self, forKey: .showAlertInFullScreen) ?? true
         hideFrontmostAppOnClick = try container.decodeIfPresent(Bool.self, forKey: .hideFrontmostAppOnClick) ?? true
         alwaysShowControlIcon = try container.decodeIfPresent(Bool.self, forKey: .alwaysShowControlIcon) ?? false
+        automaticallyCheckForUpdates = try container.decodeIfPresent(Bool.self, forKey: .automaticallyCheckForUpdates) ?? true
         pollIntervalSeconds = try container.decodeIfPresent(Double.self, forKey: .pollIntervalSeconds) ?? 1.0
     }
 }
