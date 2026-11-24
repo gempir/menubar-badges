@@ -454,7 +454,7 @@ private struct GeneralSettingsDetailView: View {
 
     private var footerSection: some View {
         HStack {
-            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.2.0"
+            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.2.1"
             Text("Version \(version)")
                 .font(.caption)
                 .foregroundStyle(.secondary)

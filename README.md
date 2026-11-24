@@ -52,10 +52,10 @@ Requires macOS 13+ and Swift 6 / Xcode.
 swift test
 
 # Build release MenubarBadges.app into ./dist/MenubarBadges.app
-./Scripts/build-app.sh 0.2.0
+./Scripts/build-app.sh 0.2.1
 
-# Build distributable DMG into ./dist/MenubarBadges-0.2.0.dmg
-./Scripts/build-dmg.sh 0.2.0
+# Build distributable DMG into ./dist/MenubarBadges-0.2.1.dmg
+./Scripts/build-dmg.sh 0.2.1
 
 # Run live macOS focus-safety verification
 ./dist/MenubarBadges.app/Contents/MacOS/MenubarBadges --verify-focus-safety

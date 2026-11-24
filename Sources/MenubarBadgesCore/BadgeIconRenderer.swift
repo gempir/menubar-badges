@@ -1,5 +1,6 @@
 import AppKit
 import CoreImage
+import CoreText
 
 /// Renders crisp Retina-ready `NSImage`s for menu bar status items and previews.
 public enum BadgeIconRenderer {
@@ -158,21 +159,30 @@ public enum BadgeIconRenderer {
             return drawSimpleDotOverlay(on: icon, hasUnread: true, iconSize: iconSize, dotSize: dotSize)
         }
 
-        let fontScale: CGFloat = label.count >= 3 ? 0.64 : 0.74
+        let fontScale: CGFloat = label.count >= 3 ? 0.62 : 0.72
         let font = NSFont.systemFont(ofSize: max(6.0, badgeSize * fontScale), weight: .bold)
         let attrs: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: NSColor.white
         ]
-        let textSize = (label as NSString).size(withAttributes: attrs)
-        let badgeHeight = badgeSize
-        let horizontalPadding: CGFloat = label.count == 1 ? max(3.0, badgeSize * 0.30) : max(4.0, badgeSize * 0.38)
-        let badgeWidth = max(badgeHeight, ceil(textSize.width) + horizontalPadding)
+        let attributed = NSAttributedString(string: label, attributes: attrs)
+        let ctLine = CTLineCreateWithAttributedString(attributed)
+        let glyphBounds = CTLineGetBoundsWithOptions(ctLine, .useGlyphPathBounds)
 
-        let canvasHeight = min(maxMenuBarHeight, max(iconSize + 2.0, badgeHeight + 2.0))
+        let badgeHeight = badgeSize
+        let horizontalPadding: CGFloat = label.count == 1 ? max(3.5, badgeSize * 0.34) : max(5.0, badgeSize * 0.46)
+        let badgeWidth = max(badgeHeight, ceil(glyphBounds.width + horizontalPadding))
+
+        let haloInset: CGFloat = 0.6
+        let canvasHeight = min(maxMenuBarHeight, max(iconSize + 2.0, badgeHeight + haloInset * 2.0))
         let iconDrawSize = min(iconSize, canvasHeight - 1.0)
-        let overlapX = min(badgeWidth * 0.45, iconDrawSize * 0.42)
-        let canvasWidth = ceil(max(iconDrawSize + 2.0, iconDrawSize + badgeWidth - overlapX))
+
+        // Hug the top-right corner of the icon (accounting for macOS icon ~10% transparent margin).
+        // Single-digit circles overhang only slightly; wider pills expand cleanly to the right.
+        let circleOverhang = max(0.5, min(1.5, badgeHeight * 0.10))
+        let extraPillWidth = max(0.0, badgeWidth - badgeHeight)
+        let badgeRightX = iconDrawSize + circleOverhang + extraPillWidth * 0.72
+        let canvasWidth = ceil(max(iconDrawSize + haloInset, badgeRightX + haloInset))
 
         let image = NSImage(size: NSSize(width: canvasWidth, height: canvasHeight), flipped: false) { _ in
             NSGraphicsContext.current?.imageInterpolation = .high
@@ -182,24 +192,29 @@ public enum BadgeIconRenderer {
             icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
 
             let badgeRect = NSRect(
-                x: canvasWidth - badgeWidth,
-                y: canvasHeight - badgeHeight,
+                x: canvasWidth - haloInset - badgeWidth,
+                y: canvasHeight - haloInset - badgeHeight,
                 width: badgeWidth,
                 height: badgeHeight
             )
 
-            let haloRect = badgeRect.insetBy(dx: -0.6, dy: -0.6)
+            let haloRect = badgeRect.insetBy(dx: -haloInset, dy: -haloInset)
             NSColor.black.withAlphaComponent(0.25).setFill()
             NSBezierPath(roundedRect: haloRect, xRadius: haloRect.height / 2, yRadius: haloRect.height / 2).fill()
 
             NSColor.systemRed.setFill()
             NSBezierPath(roundedRect: badgeRect, xRadius: badgeHeight / 2, yRadius: badgeHeight / 2).fill()
 
-            let textOrigin = NSPoint(
-                x: badgeRect.midX - textSize.width / 2.0,
-                y: badgeRect.midY - textSize.height / 2.0 - 0.25
-            )
-            (label as NSString).draw(at: textOrigin, withAttributes: attrs)
+            // Center the exact optical ink bounding box of the glyphs inside the badge pill/circle.
+            if let cgContext = NSGraphicsContext.current?.cgContext {
+                cgContext.saveGState()
+                cgContext.textMatrix = .identity
+                let drawX = badgeRect.midX - glyphBounds.midX
+                let drawY = badgeRect.midY - glyphBounds.midY
+                cgContext.textPosition = CGPoint(x: drawX, y: drawY)
+                CTLineDraw(ctLine, cgContext)
+                cgContext.restoreGState()
+            }
             return true
         }
         image.isTemplate = false
@@ -218,25 +233,26 @@ public enum BadgeIconRenderer {
         }
 
         let dotDiameter = min(max(dotSize, 4.0), 12.0)
-        let canvasHeight = min(maxMenuBarHeight, max(iconSize + 2.0, dotDiameter + 2.0))
+        let haloInset: CGFloat = 0.8
+        let canvasHeight = min(maxMenuBarHeight, max(iconSize + 2.0, dotDiameter + haloInset * 2.0))
         let iconDrawSize = min(iconSize, canvasHeight - 1.0)
-        let canvasWidth = ceil(iconDrawSize + max(2.0, dotDiameter * 0.35))
+        let canvasWidth = ceil(iconDrawSize + max(0.5, dotDiameter * 0.14) + haloInset)
 
         let image = NSImage(size: NSSize(width: canvasWidth, height: canvasHeight), flipped: false) { _ in
             NSGraphicsContext.current?.imageInterpolation = .high
 
-            let iconY = max(0.0, (canvasHeight - iconDrawSize) / 2.0)
+            let iconY = max(0.0, (canvasHeight - iconDrawSize) / 2.0 - 0.5)
             let iconRect = NSRect(x: 0, y: iconY, width: iconDrawSize, height: iconDrawSize)
             icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
 
             let dotRect = NSRect(
-                x: canvasWidth - dotDiameter - 0.5,
-                y: canvasHeight - dotDiameter - 0.5,
+                x: canvasWidth - haloInset - dotDiameter,
+                y: canvasHeight - haloInset - dotDiameter,
                 width: dotDiameter,
                 height: dotDiameter
             )
 
-            let haloRect = dotRect.insetBy(dx: -0.8, dy: -0.8)
+            let haloRect = dotRect.insetBy(dx: -haloInset, dy: -haloInset)
             NSColor.black.withAlphaComponent(0.28).setFill()
             NSBezierPath(ovalIn: haloRect).fill()
 
