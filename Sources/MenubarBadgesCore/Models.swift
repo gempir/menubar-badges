@@ -181,8 +181,16 @@ public struct MonitoredAppStatus: Equatable, Sendable {
 
 /// Persisted global user preferences.
 public struct AppPreferences: Codable, Equatable, Sendable {
+    public static let defaultIconSize: Double = 18.0
+    public static let iconSizeRange: ClosedRange<Double> = 12.0...22.0
+
+    public static let defaultBadgeSize: Double = 11.0
+    public static let badgeSizeRange: ClosedRange<Double> = 7.0...15.0
+
     public var displayStyle: BadgeDisplayStyle = .redBadge
     public var countTextFormat: CountTextFormat = .parenthesized
+    public var iconSize: Double = AppPreferences.defaultIconSize
+    public var badgeSize: Double = AppPreferences.defaultBadgeSize
     public var hideWhenAppNotRunning: Bool = false
     public var hideWhenNoUnread: Bool = false
     public var grayOutWhenNoUnread: Bool = false
@@ -190,7 +198,21 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public var hideFrontmostAppOnClick: Bool = true
     public var alwaysShowControlIcon: Bool = false
     public var pollIntervalSeconds: Double = 1.0
-    public var settingsHotkey: HotkeyCombo? = .defaultSettingsHotkey
 
     public init() {}
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        displayStyle = try container.decodeIfPresent(BadgeDisplayStyle.self, forKey: .displayStyle) ?? .redBadge
+        countTextFormat = try container.decodeIfPresent(CountTextFormat.self, forKey: .countTextFormat) ?? .parenthesized
+        iconSize = try container.decodeIfPresent(Double.self, forKey: .iconSize) ?? Self.defaultIconSize
+        badgeSize = try container.decodeIfPresent(Double.self, forKey: .badgeSize) ?? Self.defaultBadgeSize
+        hideWhenAppNotRunning = try container.decodeIfPresent(Bool.self, forKey: .hideWhenAppNotRunning) ?? false
+        hideWhenNoUnread = try container.decodeIfPresent(Bool.self, forKey: .hideWhenNoUnread) ?? false
+        grayOutWhenNoUnread = try container.decodeIfPresent(Bool.self, forKey: .grayOutWhenNoUnread) ?? false
+        showAlertInFullScreen = try container.decodeIfPresent(Bool.self, forKey: .showAlertInFullScreen) ?? true
+        hideFrontmostAppOnClick = try container.decodeIfPresent(Bool.self, forKey: .hideFrontmostAppOnClick) ?? true
+        alwaysShowControlIcon = try container.decodeIfPresent(Bool.self, forKey: .alwaysShowControlIcon) ?? false
+        pollIntervalSeconds = try container.decodeIfPresent(Double.self, forKey: .pollIntervalSeconds) ?? 1.0
+    }
 }

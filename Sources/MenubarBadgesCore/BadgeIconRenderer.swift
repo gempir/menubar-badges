@@ -3,12 +3,15 @@ import CoreImage
 
 /// Renders crisp Retina-ready `NSImage`s for menu bar status items and previews.
 public enum BadgeIconRenderer {
-    public static let defaultCanvasHeight: CGFloat = 20
-    public static let defaultIconSize: CGFloat = 18
+    public static let maxMenuBarHeight: CGFloat = 22.0
+    public static let defaultIconSize: CGFloat = CGFloat(AppPreferences.defaultIconSize)
+    public static let defaultBadgeSize: CGFloat = CGFloat(AppPreferences.defaultBadgeSize)
 
     public struct RenderOptions: Equatable, Sendable {
         public var style: BadgeDisplayStyle
         public var countFormat: CountTextFormat
+        public var iconSize: CGFloat
+        public var badgeSize: CGFloat
         public var grayOutWhenNoUnread: Bool
         public var invertInDarkMode: Bool
         public var monochrome: Bool
@@ -17,6 +20,8 @@ public enum BadgeIconRenderer {
         public init(
             style: BadgeDisplayStyle = .redBadge,
             countFormat: CountTextFormat = .parenthesized,
+            iconSize: CGFloat = BadgeIconRenderer.defaultIconSize,
+            badgeSize: CGFloat = BadgeIconRenderer.defaultBadgeSize,
             grayOutWhenNoUnread: Bool = false,
             invertInDarkMode: Bool = false,
             monochrome: Bool = false,
@@ -24,6 +29,8 @@ public enum BadgeIconRenderer {
         ) {
             self.style = style
             self.countFormat = countFormat
+            self.iconSize = min(max(iconSize, CGFloat(AppPreferences.iconSizeRange.lowerBound)), CGFloat(AppPreferences.iconSizeRange.upperBound))
+            self.badgeSize = min(max(badgeSize, CGFloat(AppPreferences.badgeSizeRange.lowerBound)), CGFloat(AppPreferences.badgeSizeRange.upperBound))
             self.grayOutWhenNoUnread = grayOutWhenNoUnread
             self.invertInDarkMode = invertInDarkMode
             self.monochrome = monochrome
@@ -34,10 +41,12 @@ public enum BadgeIconRenderer {
     public struct RenderedStatusItemContent {
         public let image: NSImage
         public let title: String
+        public let titleFontSize: CGFloat
 
-        public init(image: NSImage, title: String) {
+        public init(image: NSImage, title: String, titleFontSize: CGFloat = 13.0) {
             self.image = image
             self.title = title
+            self.titleFontSize = titleFontSize
         }
     }
 
@@ -51,26 +60,46 @@ public enum BadgeIconRenderer {
 
         switch options.style {
         case .redBadge:
-            let image = drawRedBadgeOverlay(on: preparedIcon, badge: badge)
+            let image = drawRedBadgeOverlay(
+                on: preparedIcon,
+                badge: badge,
+                iconSize: options.iconSize,
+                badgeSize: options.badgeSize
+            )
             return RenderedStatusItemContent(image: image, title: "")
 
         case .simpleDot:
-            let image = drawSimpleDotOverlay(on: preparedIcon, hasUnread: badge.hasUnread)
+            let image = drawSimpleDotOverlay(
+                on: preparedIcon,
+                hasUnread: badge.hasUnread,
+                iconSize: options.iconSize,
+                badgeSize: options.badgeSize
+            )
             return RenderedStatusItemContent(image: image, title: "")
 
         case .iconAndCount:
             if badge == .dot {
-                // Render a crisp unread dot beside the icon so dots look sharp and unmistakable.
-                let image = drawSideDot(nextTo: preparedIcon)
+                let image = drawSideDot(
+                    nextTo: preparedIcon,
+                    iconSize: options.iconSize,
+                    badgeSize: options.badgeSize
+                )
                 return RenderedStatusItemContent(image: image, title: "")
             } else {
-                let iconImage = drawResizedIcon(preparedIcon, size: NSSize(width: defaultIconSize, height: defaultIconSize))
+                let iconImage = drawResizedIcon(
+                    preparedIcon,
+                    size: NSSize(width: options.iconSize, height: options.iconSize)
+                )
                 let title = badge.hasUnread ? " " + badge.formattedInlineLabel(format: options.countFormat) : ""
-                return RenderedStatusItemContent(image: iconImage, title: title)
+                let fontSize = min(max(options.badgeSize + 2.0, 9.5), 16.0)
+                return RenderedStatusItemContent(image: iconImage, title: title, titleFontSize: fontSize)
             }
 
         case .iconOnly:
-            let iconImage = drawResizedIcon(preparedIcon, size: NSSize(width: defaultIconSize, height: defaultIconSize))
+            let iconImage = drawResizedIcon(
+                preparedIcon,
+                size: NSSize(width: options.iconSize, height: options.iconSize)
+            )
             return RenderedStatusItemContent(image: iconImage, title: "")
         }
     }
@@ -108,38 +137,42 @@ public enum BadgeIconRenderer {
     }
 
     /// Draws a Dock-style red pill/circle badge (or red dot) at the top-right corner of the icon.
-    /// Dynamically widens the canvas slightly for 2+ digit badges so numbers are never truncated.
-    public static func drawRedBadgeOverlay(on icon: NSImage, badge: BadgeValue) -> NSImage {
+    /// Dynamically adapts canvas dimensions to `iconSize` and `badgeSize` so counts are never clipped.
+    public static func drawRedBadgeOverlay(
+        on icon: NSImage,
+        badge: BadgeValue,
+        iconSize: CGFloat = BadgeIconRenderer.defaultIconSize,
+        badgeSize: CGFloat = BadgeIconRenderer.defaultBadgeSize
+    ) -> NSImage {
         guard badge.hasUnread else {
-            return drawResizedIcon(icon, size: NSSize(width: defaultIconSize, height: defaultIconSize))
+            return drawResizedIcon(icon, size: NSSize(width: iconSize, height: iconSize))
         }
 
-        // Dot badge
         guard let label = badge.compactOverlayLabel else {
-            return drawSimpleDotOverlay(on: icon, hasUnread: true)
+            return drawSimpleDotOverlay(on: icon, hasUnread: true, iconSize: iconSize, badgeSize: badgeSize)
         }
 
-        let font = NSFont.systemFont(ofSize: label.count >= 3 ? 7.5 : 8.5, weight: .bold)
+        let fontScale: CGFloat = label.count >= 3 ? 0.64 : 0.74
+        let font = NSFont.systemFont(ofSize: max(6.0, badgeSize * fontScale), weight: .bold)
         let attrs: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: NSColor.white
         ]
         let textSize = (label as NSString).size(withAttributes: attrs)
-        let badgeHeight: CGFloat = 11.0
-        let horizontalPadding: CGFloat = label.count == 1 ? 3.5 : 4.5
+        let badgeHeight = badgeSize
+        let horizontalPadding: CGFloat = label.count == 1 ? max(3.0, badgeSize * 0.30) : max(4.0, badgeSize * 0.38)
         let badgeWidth = max(badgeHeight, ceil(textSize.width) + horizontalPadding)
 
-        // Expand canvas width slightly when badge is wide (e.g. "42" or "99+") so it never clips.
-        let canvasHeight: CGFloat = defaultCanvasHeight
-        let iconDrawSize: CGFloat = 17.5
-        let extraRight: CGFloat = max(0, badgeWidth - 11.0) * 0.6
-        let canvasWidth: CGFloat = ceil(20.0 + extraRight)
+        let canvasHeight = min(maxMenuBarHeight, max(iconSize + 2.0, badgeHeight + 2.0))
+        let iconDrawSize = min(iconSize, canvasHeight - 1.0)
+        let overlapX = min(badgeWidth * 0.45, iconDrawSize * 0.42)
+        let canvasWidth = ceil(max(iconDrawSize + 2.0, iconDrawSize + badgeWidth - overlapX))
 
         let image = NSImage(size: NSSize(width: canvasWidth, height: canvasHeight), flipped: false) { _ in
             NSGraphicsContext.current?.imageInterpolation = .high
 
-            // Draw icon anchored bottom-left so badge sits crisply at top-right.
-            let iconRect = NSRect(x: 0, y: 0.5, width: iconDrawSize, height: iconDrawSize)
+            let iconY = max(0.0, (canvasHeight - iconDrawSize) / 2.0 - 0.5)
+            let iconRect = NSRect(x: 0, y: iconY, width: iconDrawSize, height: iconDrawSize)
             icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
 
             let badgeRect = NSRect(
@@ -149,20 +182,16 @@ public enum BadgeIconRenderer {
                 height: badgeHeight
             )
 
-            // Subtle dark halo behind the pill for contrast against any icon color.
             let haloRect = badgeRect.insetBy(dx: -0.6, dy: -0.6)
             NSColor.black.withAlphaComponent(0.25).setFill()
             NSBezierPath(roundedRect: haloRect, xRadius: haloRect.height / 2, yRadius: haloRect.height / 2).fill()
 
-            // Crisp macOS notification red pill.
             NSColor.systemRed.setFill()
-            let pillPath = NSBezierPath(roundedRect: badgeRect, xRadius: badgeHeight / 2, yRadius: badgeHeight / 2)
-            pillPath.fill()
+            NSBezierPath(roundedRect: badgeRect, xRadius: badgeHeight / 2, yRadius: badgeHeight / 2).fill()
 
-            // Center text inside pill.
             let textOrigin = NSPoint(
                 x: badgeRect.midX - textSize.width / 2.0,
-                y: badgeRect.midY - textSize.height / 2.0 - 0.3
+                y: badgeRect.midY - textSize.height / 2.0 - 0.25
             )
             (label as NSString).draw(at: textOrigin, withAttributes: attrs)
             return true
@@ -172,29 +201,35 @@ public enum BadgeIconRenderer {
     }
 
     /// Draws a crisp red unread dot overlaid at the top-right corner of the icon.
-    public static func drawSimpleDotOverlay(on icon: NSImage, hasUnread: Bool) -> NSImage {
+    public static func drawSimpleDotOverlay(
+        on icon: NSImage,
+        hasUnread: Bool,
+        iconSize: CGFloat = BadgeIconRenderer.defaultIconSize,
+        badgeSize: CGFloat = BadgeIconRenderer.defaultBadgeSize
+    ) -> NSImage {
         guard hasUnread else {
-            return drawResizedIcon(icon, size: NSSize(width: defaultIconSize, height: defaultIconSize))
+            return drawResizedIcon(icon, size: NSSize(width: iconSize, height: iconSize))
         }
 
-        let canvasSize = NSSize(width: defaultCanvasHeight, height: defaultCanvasHeight)
-        let iconDrawSize: CGFloat = 17.5
-        let dotDiameter: CGFloat = 7.5
+        let dotDiameter = min(max(badgeSize * 0.70, 5.0), 12.0)
+        let canvasHeight = min(maxMenuBarHeight, max(iconSize + 2.0, dotDiameter + 2.0))
+        let iconDrawSize = min(iconSize, canvasHeight - 1.0)
+        let canvasWidth = ceil(iconDrawSize + max(2.0, dotDiameter * 0.35))
 
-        let image = NSImage(size: canvasSize, flipped: false) { _ in
+        let image = NSImage(size: NSSize(width: canvasWidth, height: canvasHeight), flipped: false) { _ in
             NSGraphicsContext.current?.imageInterpolation = .high
 
-            let iconRect = NSRect(x: 0, y: 1.0, width: iconDrawSize, height: iconDrawSize)
+            let iconY = max(0.0, (canvasHeight - iconDrawSize) / 2.0)
+            let iconRect = NSRect(x: 0, y: iconY, width: iconDrawSize, height: iconDrawSize)
             icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
 
             let dotRect = NSRect(
-                x: canvasSize.width - dotDiameter - 0.5,
-                y: canvasSize.height - dotDiameter - 0.5,
+                x: canvasWidth - dotDiameter - 0.5,
+                y: canvasHeight - dotDiameter - 0.5,
                 width: dotDiameter,
                 height: dotDiameter
             )
 
-            // Subtle contrast ring.
             let haloRect = dotRect.insetBy(dx: -0.8, dy: -0.8)
             NSColor.black.withAlphaComponent(0.28).setFill()
             NSBezierPath(ovalIn: haloRect).fill()
@@ -208,24 +243,28 @@ public enum BadgeIconRenderer {
     }
 
     /// Draws the icon with a crisp red dot placed directly beside it (for `iconAndCount` when badge is `.dot`).
-    public static func drawSideDot(nextTo icon: NSImage) -> NSImage {
-        let iconDrawSize: CGFloat = defaultIconSize
-        let dotDiameter: CGFloat = 6.5
+    public static func drawSideDot(
+        nextTo icon: NSImage,
+        iconSize: CGFloat = BadgeIconRenderer.defaultIconSize,
+        badgeSize: CGFloat = BadgeIconRenderer.defaultBadgeSize
+    ) -> NSImage {
+        let dotDiameter = min(max(badgeSize * 0.62, 5.0), 11.0)
         let spacing: CGFloat = 3.5
-        let canvasSize = NSSize(width: iconDrawSize + spacing + dotDiameter + 1.0, height: defaultCanvasHeight)
+        let canvasHeight = min(maxMenuBarHeight, max(iconSize + 2.0, dotDiameter + 2.0))
+        let canvasSize = NSSize(width: ceil(iconSize + spacing + dotDiameter + 1.0), height: canvasHeight)
 
         let image = NSImage(size: canvasSize, flipped: false) { _ in
             NSGraphicsContext.current?.imageInterpolation = .high
             let iconRect = NSRect(
                 x: 0,
-                y: (canvasSize.height - iconDrawSize) / 2.0,
-                width: iconDrawSize,
-                height: iconDrawSize
+                y: (canvasSize.height - iconSize) / 2.0,
+                width: iconSize,
+                height: iconSize
             )
             icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
 
             let dotRect = NSRect(
-                x: iconDrawSize + spacing,
+                x: iconSize + spacing,
                 y: (canvasSize.height - dotDiameter) / 2.0,
                 width: dotDiameter,
                 height: dotDiameter
@@ -242,14 +281,12 @@ public enum BadgeIconRenderer {
     public static func controlStatusIcon() -> NSImage {
         let size = NSSize(width: 18, height: 18)
         let image = NSImage(size: size, flipped: false) { _ in
-            // Rounded square representing an app icon in the menu bar
             let bodyRect = NSRect(x: 1.5, y: 1.5, width: 13.5, height: 13.5)
             let bodyPath = NSBezierPath(roundedRect: bodyRect, xRadius: 3.5, yRadius: 3.5)
             bodyPath.lineWidth = 1.5
             NSColor.labelColor.setStroke()
             bodyPath.stroke()
 
-            // Notification badge dot in top-right corner
             let dotRect = NSRect(x: 11.0, y: 11.0, width: 6.0, height: 6.0)
             NSColor.labelColor.setFill()
             NSBezierPath(ovalIn: dotRect).fill()

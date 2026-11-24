@@ -26,7 +26,6 @@ let package = Package(
             dependencies: ["MenubarBadgesCore"],
             path: "Sources/MenubarBadges",
             linkerSettings: [
-                .linkedFramework("Carbon"),
                 .linkedFramework("ServiceManagement")
             ]
         ),

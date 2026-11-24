@@ -26,8 +26,9 @@ final class DockBadgeMonitor: ObservableObject {
     private var bundleIdCache: [String: String] = [:]
     private var workspaceObservers: [NSObjectProtocol] = []
 
-    /// Optional hook used in automated tests / demo mode to inject synthetic badge statuses.
+    /// Optional hooks used in automated tests / screenshot mode to inject synthetic state.
     var syntheticOverrides: [String: MonitoredAppStatus] = [:]
+    var syntheticAccessibilityOverride: Bool?
 
     func stop() {
         pollTimer?.invalidate()
@@ -72,13 +73,13 @@ final class DockBadgeMonitor: ObservableObject {
     }
 
     func pollNow() {
-        let trusted = AXIsProcessTrusted()
+        let trusted = syntheticAccessibilityOverride ?? AXIsProcessTrusted()
         if trusted != isAccessibilityTrusted {
             isAccessibilityTrusted = trusted
         }
 
         var latestDockItems: [DockItemSnapshot] = []
-        if trusted {
+        if syntheticAccessibilityOverride == nil && trusted {
             ensureDockObserverArmed()
             latestDockItems = readDockItems()
         } else {

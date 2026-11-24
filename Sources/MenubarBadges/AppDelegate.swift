@@ -15,6 +15,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        if let idx = CommandLine.arguments.firstIndex(of: "--render-screenshots"),
+           idx + 1 < CommandLine.arguments.count {
+            let outputDir = CommandLine.arguments[idx + 1]
+            ScreenshotRenderer.renderAll(to: outputDir)
+            exit(0)
+        }
+
         let coordinator = MenubarCoordinator()
         self.coordinator = coordinator
         coordinator.start(openSettingsIfEmpty: true)

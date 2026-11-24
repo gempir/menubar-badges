@@ -228,7 +228,6 @@ private struct GeneralSettingsDetailView: View {
                 displayStyleSection
                 visibilitySection
                 behaviorSection
-                shortcutSection
                 footerSection
             }
             .padding(24)
@@ -288,6 +287,52 @@ private struct GeneralSettingsDetailView: View {
 
                 Divider()
 
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Icon size:")
+                            .frame(width: 80, alignment: .leading)
+                        Slider(
+                            value: $settings.preferences.iconSize,
+                            in: AppPreferences.iconSizeRange,
+                            step: 1.0
+                        )
+                        .frame(width: 190)
+                        Text("\(Int(settings.preferences.iconSize)) pt")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 38, alignment: .trailing)
+
+                        Spacer()
+
+                        if settings.preferences.iconSize != AppPreferences.defaultIconSize
+                            || settings.preferences.badgeSize != AppPreferences.defaultBadgeSize {
+                            Button("Reset Sizes") {
+                                settings.preferences.iconSize = AppPreferences.defaultIconSize
+                                settings.preferences.badgeSize = AppPreferences.defaultBadgeSize
+                            }
+                            .controlSize(.small)
+                        }
+                    }
+
+                    HStack {
+                        Text("Badge size:")
+                            .frame(width: 80, alignment: .leading)
+                        Slider(
+                            value: $settings.preferences.badgeSize,
+                            in: AppPreferences.badgeSizeRange,
+                            step: 1.0
+                        )
+                        .frame(width: 190)
+                        .disabled(settings.preferences.displayStyle == .iconOnly)
+                        Text("\(Int(settings.preferences.badgeSize)) pt")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 38, alignment: .trailing)
+                    }
+                }
+
+                Divider()
+
                 liveStylePreviewRow
             }
             .padding(8)
@@ -314,6 +359,8 @@ private struct GeneralSettingsDetailView: View {
                     options: .init(
                         style: settings.preferences.displayStyle,
                         countFormat: settings.preferences.countTextFormat,
+                        iconSize: CGFloat(settings.preferences.iconSize),
+                        badgeSize: CGFloat(settings.preferences.badgeSize),
                         grayOutWhenNoUnread: settings.preferences.grayOutWhenNoUnread
                     )
                 )
@@ -322,9 +369,11 @@ private struct GeneralSettingsDetailView: View {
                         Image(nsImage: rendered.image)
                         if !rendered.title.isEmpty {
                             Text(rendered.title)
-                                .font(.system(size: 13))
+                                .font(.system(size: rendered.titleFontSize, weight: .medium))
+                                .monospacedDigit()
                         }
                     }
+                    .frame(minHeight: 24)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.08)))
@@ -374,24 +423,12 @@ private struct GeneralSettingsDetailView: View {
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
                 }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
-        }
-    }
 
-    private var shortcutSection: some View {
-        GroupBox("Shortcuts & Quick Access") {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Global shortcut to open Settings:")
-                    Spacer()
-                    HotkeyRecorderView(combo: $settings.preferences.settingsHotkey)
-                }
-                Text("Tip: You can also Option-click (⌥ + click) or right-click any monitored icon in the menu bar to open Settings.")
+                Text("Tip: Option-click (⌥ + click) or right-click any monitored icon in the menu bar to open Settings.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(8)
         }
     }

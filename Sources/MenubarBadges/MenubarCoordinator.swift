@@ -34,7 +34,6 @@ final class MenubarCoordinator: NSObject, ObservableObject {
         bindState()
         syncStatusItems()
         syncControlStatusItem()
-        registerGlobalHotkey()
 
         monitor.start(
             monitoredApps: settings.monitoredApps,
@@ -107,7 +106,6 @@ final class MenubarCoordinator: NSObject, ObservableObject {
     }
 
     func tearDown() {
-        GlobalHotkeyManager.shared.unregister()
         monitor.stop()
         installedApps.stop()
         for controller in statusControllers.values {
@@ -140,7 +138,6 @@ final class MenubarCoordinator: NSObject, ObservableObject {
                 guard let self else { return }
                 self.syncControlStatusItem()
                 self.monitor.updatePollInterval(prefs.pollIntervalSeconds)
-                self.registerGlobalHotkey()
                 self.renderAllStatusItems()
             }
             .store(in: &cancellables)
@@ -273,11 +270,5 @@ final class MenubarCoordinator: NSObject, ObservableObject {
 
     @objc private func menuQuitFromControl() {
         NSApp.terminate(nil)
-    }
-
-    private func registerGlobalHotkey() {
-        GlobalHotkeyManager.shared.register(combo: settings.preferences.settingsHotkey) { [weak self] in
-            self?.showSettingsWindow()
-        }
     }
 }

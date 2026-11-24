@@ -83,6 +83,8 @@ struct AppDetailView: View {
                                 options: .init(
                                     style: settings.preferences.displayStyle,
                                     countFormat: settings.preferences.countTextFormat,
+                                    iconSize: CGFloat(settings.preferences.iconSize),
+                                    badgeSize: CGFloat(settings.preferences.badgeSize),
                                     grayOutWhenNoUnread: settings.preferences.grayOutWhenNoUnread,
                                     invertInDarkMode: currentApp.invertIconInDarkMode,
                                     monochrome: currentApp.monochromeIcon,
@@ -94,9 +96,11 @@ struct AppDetailView: View {
                                     Image(nsImage: rendered.image)
                                     if !rendered.title.isEmpty {
                                         Text(rendered.title)
-                                            .font(.system(size: 13))
+                                            .font(.system(size: rendered.titleFontSize, weight: .medium))
+                                            .monospacedDigit()
                                     }
                                 }
+                                .frame(minHeight: 24)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
                                 .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.08)))

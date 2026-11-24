@@ -1,5 +1,4 @@
 import AppKit
-import Carbon.HIToolbox
 import XCTest
 @testable import MenubarBadgesCore
 
@@ -122,6 +121,34 @@ final class MenubarBadgesCoreTests: XCTestCase {
         let singleDigit = BadgeIconRenderer.drawRedBadgeOverlay(on: baseIcon, badge: .count(1, raw: "1"))
         let tripleDigit = BadgeIconRenderer.drawRedBadgeOverlay(on: baseIcon, badge: .count(120, raw: "120"))
         XCTAssertGreaterThanOrEqual(tripleDigit.size.width, singleDigit.size.width)
+
+        // Verify configurable iconSize and badgeSize affect rendered output dimensions.
+        let compact = BadgeIconRenderer.renderStatusItem(
+            baseIcon: baseIcon,
+            badge: .count(5, raw: "5"),
+            options: .init(style: .redBadge, iconSize: 13, badgeSize: 8)
+        )
+        let large = BadgeIconRenderer.renderStatusItem(
+            baseIcon: baseIcon,
+            badge: .count(5, raw: "5"),
+            options: .init(style: .redBadge, iconSize: 21, badgeSize: 14)
+        )
+        XCTAssertGreaterThan(large.image.size.width, compact.image.size.width)
+        XCTAssertGreaterThan(large.image.size.height, compact.image.size.height)
+
+        let smallCount = BadgeIconRenderer.renderStatusItem(
+            baseIcon: baseIcon,
+            badge: .count(1, raw: "1"),
+            options: .init(style: .iconAndCount, iconSize: 14, badgeSize: 8)
+        )
+        let largeCount = BadgeIconRenderer.renderStatusItem(
+            baseIcon: baseIcon,
+            badge: .count(1, raw: "1"),
+            options: .init(style: .iconAndCount, iconSize: 20, badgeSize: 14)
+        )
+        XCTAssertGreaterThan(largeCount.titleFontSize, smallCount.titleFontSize)
+        XCTAssertEqual(smallCount.image.size.width, 14)
+        XCTAssertEqual(largeCount.image.size.width, 20)
     }
 
     // MARK: - SettingsStore Persistence Tests
@@ -142,6 +169,8 @@ final class MenubarBadgesCoreTests: XCTestCase {
         XCTAssertFalse(store.addApp(mail)) // Duplicate rejected
 
         store.preferences.displayStyle = .simpleDot
+        store.preferences.iconSize = 20
+        store.preferences.badgeSize = 13
         store.preferences.hideWhenNoUnread = true
 
         // Reload from same UserDefaults
@@ -149,17 +178,20 @@ final class MenubarBadgesCoreTests: XCTestCase {
         XCTAssertEqual(reloaded.monitoredApps.count, 1)
         XCTAssertEqual(reloaded.monitoredApps.first?.bundleId, "com.apple.mail")
         XCTAssertEqual(reloaded.preferences.displayStyle, .simpleDot)
+        XCTAssertEqual(reloaded.preferences.iconSize, 20)
+        XCTAssertEqual(reloaded.preferences.badgeSize, 13)
         XCTAssertTrue(reloaded.preferences.hideWhenNoUnread)
 
         reloaded.removeApp(bundleId: "com.apple.mail")
         XCTAssertTrue(reloaded.monitoredApps.isEmpty)
     }
 
-    // MARK: - HotkeyCombo Tests
-
-    func testHotkeyComboFormatting() {
-        let combo = HotkeyCombo.defaultSettingsHotkey
-        XCTAssertEqual(combo.displayString, "⇧⌘B")
-        XCTAssertEqual(HotkeyCombo(keyCode: UInt16(kVK_ANSI_D), modifiers: [.command, .option]).displayString, "⌥⌘D")
+    func testPreferencesDecodesGracefullyWithoutSizeFields() throws {
+        let legacyJSON = #"{"displayStyle":"iconAndCount","hideWhenNoUnread":true}"#
+        let decoded = try JSONDecoder().decode(AppPreferences.self, from: Data(legacyJSON.utf8))
+        XCTAssertEqual(decoded.displayStyle, .iconAndCount)
+        XCTAssertTrue(decoded.hideWhenNoUnread)
+        XCTAssertEqual(decoded.iconSize, AppPreferences.defaultIconSize)
+        XCTAssertEqual(decoded.badgeSize, AppPreferences.defaultBadgeSize)
     }
 }

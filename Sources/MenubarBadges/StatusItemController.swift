@@ -15,6 +15,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         var isRunning: Bool
         var style: BadgeDisplayStyle
         var countFormat: CountTextFormat
+        var iconSize: Double
+        var badgeSize: Double
         var grayOutWhenNoUnread: Bool
         var invertInDarkMode: Bool
         var monochromeIcon: Bool
@@ -78,6 +80,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             isRunning: status.isRunning,
             style: preferences.displayStyle,
             countFormat: preferences.countTextFormat,
+            iconSize: preferences.iconSize,
+            badgeSize: preferences.badgeSize,
             grayOutWhenNoUnread: preferences.grayOutWhenNoUnread,
             invertInDarkMode: app.invertIconInDarkMode,
             monochromeIcon: app.monochromeIcon,
@@ -163,6 +167,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let options = BadgeIconRenderer.RenderOptions(
             style: state.style,
             countFormat: state.countFormat,
+            iconSize: CGFloat(state.iconSize),
+            badgeSize: CGFloat(state.badgeSize),
             grayOutWhenNoUnread: state.grayOutWhenNoUnread,
             invertInDarkMode: state.invertInDarkMode,
             monochrome: state.monochromeIcon,
@@ -176,8 +182,18 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         )
 
         button.image = rendered.image
-        if button.title != rendered.title {
-            button.title = rendered.title
+        if rendered.title.isEmpty {
+            if !button.title.isEmpty || button.attributedTitle.length > 0 {
+                button.attributedTitle = NSAttributedString(string: "")
+                button.title = ""
+            }
+        } else {
+            let font = NSFont.monospacedDigitSystemFont(ofSize: rendered.titleFontSize, weight: .medium)
+            let attributed = NSAttributedString(
+                string: rendered.title,
+                attributes: [.font: font]
+            )
+            button.attributedTitle = attributed
         }
 
         // Update tooltip with live unread state.
