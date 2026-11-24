@@ -149,6 +149,31 @@ final class MenubarBadgesCoreTests: XCTestCase {
         XCTAssertGreaterThan(largeCount.titleFontSize, smallCount.titleFontSize)
         XCTAssertEqual(smallCount.image.size.width, 14)
         XCTAssertEqual(largeCount.image.size.width, 20)
+
+        // Verify dotSize scales dot rendering independently from badgeSize.
+        let smallDot = BadgeIconRenderer.renderStatusItem(
+            baseIcon: baseIcon,
+            badge: .dot,
+            options: .init(style: .redBadge, iconSize: 18, badgeSize: 14, dotSize: 4)
+        )
+        let largeDot = BadgeIconRenderer.renderStatusItem(
+            baseIcon: baseIcon,
+            badge: .dot,
+            options: .init(style: .redBadge, iconSize: 18, badgeSize: 8, dotSize: 12)
+        )
+        XCTAssertGreaterThan(largeDot.image.size.width, smallDot.image.size.width)
+
+        let sideDotSmall = BadgeIconRenderer.renderStatusItem(
+            baseIcon: baseIcon,
+            badge: .dot,
+            options: .init(style: .iconAndCount, iconSize: 18, badgeSize: 14, dotSize: 4)
+        )
+        let sideDotLarge = BadgeIconRenderer.renderStatusItem(
+            baseIcon: baseIcon,
+            badge: .dot,
+            options: .init(style: .iconAndCount, iconSize: 18, badgeSize: 8, dotSize: 12)
+        )
+        XCTAssertGreaterThan(sideDotLarge.image.size.width, sideDotSmall.image.size.width)
     }
 
     // MARK: - SettingsStore Persistence Tests
@@ -171,6 +196,7 @@ final class MenubarBadgesCoreTests: XCTestCase {
         store.preferences.displayStyle = .simpleDot
         store.preferences.iconSize = 20
         store.preferences.badgeSize = 13
+        store.preferences.dotSize = 10
         store.preferences.hideWhenNoUnread = true
 
         // Reload from same UserDefaults
@@ -180,6 +206,7 @@ final class MenubarBadgesCoreTests: XCTestCase {
         XCTAssertEqual(reloaded.preferences.displayStyle, .simpleDot)
         XCTAssertEqual(reloaded.preferences.iconSize, 20)
         XCTAssertEqual(reloaded.preferences.badgeSize, 13)
+        XCTAssertEqual(reloaded.preferences.dotSize, 10)
         XCTAssertTrue(reloaded.preferences.hideWhenNoUnread)
 
         reloaded.removeApp(bundleId: "com.apple.mail")
@@ -193,5 +220,6 @@ final class MenubarBadgesCoreTests: XCTestCase {
         XCTAssertTrue(decoded.hideWhenNoUnread)
         XCTAssertEqual(decoded.iconSize, AppPreferences.defaultIconSize)
         XCTAssertEqual(decoded.badgeSize, AppPreferences.defaultBadgeSize)
+        XCTAssertEqual(decoded.dotSize, AppPreferences.defaultDotSize)
     }
 }

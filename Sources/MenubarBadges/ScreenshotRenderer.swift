@@ -50,7 +50,7 @@ enum ScreenshotRenderer {
         renderWindowScreenshot(
             view: SettingsView(coordinator: coordinator),
             title: "Menubar Badges",
-            size: NSSize(width: 860, height: 790),
+            size: NSSize(width: 860, height: 825),
             appearance: NSAppearance(named: .darkAqua),
             to: outURL.appendingPathComponent("settings-general.png")
         )

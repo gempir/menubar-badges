@@ -17,6 +17,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         var countFormat: CountTextFormat
         var iconSize: Double
         var badgeSize: Double
+        var dotSize: Double
         var grayOutWhenNoUnread: Bool
         var invertInDarkMode: Bool
         var monochromeIcon: Bool
@@ -82,6 +83,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             countFormat: preferences.countTextFormat,
             iconSize: preferences.iconSize,
             badgeSize: preferences.badgeSize,
+            dotSize: preferences.dotSize,
             grayOutWhenNoUnread: preferences.grayOutWhenNoUnread,
             invertInDarkMode: app.invertIconInDarkMode,
             monochromeIcon: app.monochromeIcon,
@@ -169,6 +171,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             countFormat: state.countFormat,
             iconSize: CGFloat(state.iconSize),
             badgeSize: CGFloat(state.badgeSize),
+            dotSize: CGFloat(state.dotSize),
             grayOutWhenNoUnread: state.grayOutWhenNoUnread,
             invertInDarkMode: state.invertInDarkMode,
             monochrome: state.monochromeIcon,

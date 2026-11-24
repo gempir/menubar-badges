@@ -26,7 +26,7 @@ Live previews and per-app overrides (dark mode invert, monochrome style, custom 
   - **Icon + Count** — App icon followed by `(1)`, `1`, or a crisp red dot using `NSStatusItem.variableLength`.
   - **Simple Dot** — App icon with a minimal red unread dot whenever any badge is present.
   - **Icon Only** — Clean app icon (pairs great with *Hide when no unread* or *Gray out when no unread*).
-  - **Icon Size & Badge Size** — Fine-tune icon size (`12–22 pt`) and badge size (`7–15 pt`) with live preview.
+  - **Independent Sizing** — Configure **Icon size** (`12–22 pt`), **Count badge size** (`7–15 pt` for single/double/multi-digit badges), and **Dot size** (`4–12 pt`) independently with live preview.
 - **Reliable Dock Matching**: Matches Dock items by bundle identifier (`AXURL`) first rather than fragile localized title-only matching, and automatically re-arms Dock Accessibility observers if the Dock process restarts.
 - **All Essential Features**:
   - Left-click any icon to jump straight to the app (or hide it if it's already frontmost).
@@ -52,10 +52,10 @@ Requires macOS 13+ and Swift 6 / Xcode.
 swift test
 
 # Build release MenubarBadges.app into ./dist/MenubarBadges.app
-./Scripts/build-app.sh 0.1.0
+./Scripts/build-app.sh 0.2.0
 
-# Build distributable DMG into ./dist/MenubarBadges-0.1.0.dmg
-./Scripts/build-dmg.sh 0.1.0
+# Build distributable DMG into ./dist/MenubarBadges-0.2.0.dmg
+./Scripts/build-dmg.sh 0.2.0
 
 # Run live macOS focus-safety verification
 ./dist/MenubarBadges.app/Contents/MacOS/MenubarBadges --verify-focus-safety

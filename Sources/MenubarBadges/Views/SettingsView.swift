@@ -290,7 +290,7 @@ private struct GeneralSettingsDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Icon size:")
-                            .frame(width: 80, alignment: .leading)
+                            .frame(width: 118, alignment: .leading)
                         Slider(
                             value: $settings.preferences.iconSize,
                             in: AppPreferences.iconSizeRange,
@@ -305,26 +305,44 @@ private struct GeneralSettingsDetailView: View {
                         Spacer()
 
                         if settings.preferences.iconSize != AppPreferences.defaultIconSize
-                            || settings.preferences.badgeSize != AppPreferences.defaultBadgeSize {
+                            || settings.preferences.badgeSize != AppPreferences.defaultBadgeSize
+                            || settings.preferences.dotSize != AppPreferences.defaultDotSize {
                             Button("Reset Sizes") {
                                 settings.preferences.iconSize = AppPreferences.defaultIconSize
                                 settings.preferences.badgeSize = AppPreferences.defaultBadgeSize
+                                settings.preferences.dotSize = AppPreferences.defaultDotSize
                             }
                             .controlSize(.small)
                         }
                     }
 
                     HStack {
-                        Text("Badge size:")
-                            .frame(width: 80, alignment: .leading)
+                        Text("Count badge size:")
+                            .frame(width: 118, alignment: .leading)
                         Slider(
                             value: $settings.preferences.badgeSize,
                             in: AppPreferences.badgeSizeRange,
                             step: 1.0
                         )
                         .frame(width: 190)
-                        .disabled(settings.preferences.displayStyle == .iconOnly)
+                        .disabled(settings.preferences.displayStyle == .iconOnly || settings.preferences.displayStyle == .simpleDot)
                         Text("\(Int(settings.preferences.badgeSize)) pt")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 38, alignment: .trailing)
+                    }
+
+                    HStack {
+                        Text("Dot size:")
+                            .frame(width: 118, alignment: .leading)
+                        Slider(
+                            value: $settings.preferences.dotSize,
+                            in: AppPreferences.dotSizeRange,
+                            step: 1.0
+                        )
+                        .frame(width: 190)
+                        .disabled(settings.preferences.displayStyle == .iconOnly)
+                        Text("\(Int(settings.preferences.dotSize)) pt")
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                             .frame(width: 38, alignment: .trailing)
@@ -361,6 +379,7 @@ private struct GeneralSettingsDetailView: View {
                         countFormat: settings.preferences.countTextFormat,
                         iconSize: CGFloat(settings.preferences.iconSize),
                         badgeSize: CGFloat(settings.preferences.badgeSize),
+                        dotSize: CGFloat(settings.preferences.dotSize),
                         grayOutWhenNoUnread: settings.preferences.grayOutWhenNoUnread
                     )
                 )
@@ -435,7 +454,7 @@ private struct GeneralSettingsDetailView: View {
 
     private var footerSection: some View {
         HStack {
-            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
+            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.2.0"
             Text("Version \(version)")
                 .font(.caption)
                 .foregroundStyle(.secondary)

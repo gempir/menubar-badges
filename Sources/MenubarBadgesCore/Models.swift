@@ -187,10 +187,14 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public static let defaultBadgeSize: Double = 11.0
     public static let badgeSizeRange: ClosedRange<Double> = 7.0...15.0
 
+    public static let defaultDotSize: Double = 8.0
+    public static let dotSizeRange: ClosedRange<Double> = 4.0...12.0
+
     public var displayStyle: BadgeDisplayStyle = .redBadge
     public var countTextFormat: CountTextFormat = .parenthesized
     public var iconSize: Double = AppPreferences.defaultIconSize
     public var badgeSize: Double = AppPreferences.defaultBadgeSize
+    public var dotSize: Double = AppPreferences.defaultDotSize
     public var hideWhenAppNotRunning: Bool = false
     public var hideWhenNoUnread: Bool = false
     public var grayOutWhenNoUnread: Bool = false
@@ -207,6 +211,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         countTextFormat = try container.decodeIfPresent(CountTextFormat.self, forKey: .countTextFormat) ?? .parenthesized
         iconSize = try container.decodeIfPresent(Double.self, forKey: .iconSize) ?? Self.defaultIconSize
         badgeSize = try container.decodeIfPresent(Double.self, forKey: .badgeSize) ?? Self.defaultBadgeSize
+        dotSize = try container.decodeIfPresent(Double.self, forKey: .dotSize) ?? Self.defaultDotSize
         hideWhenAppNotRunning = try container.decodeIfPresent(Bool.self, forKey: .hideWhenAppNotRunning) ?? false
         hideWhenNoUnread = try container.decodeIfPresent(Bool.self, forKey: .hideWhenNoUnread) ?? false
         grayOutWhenNoUnread = try container.decodeIfPresent(Bool.self, forKey: .grayOutWhenNoUnread) ?? false

@@ -6,12 +6,14 @@ public enum BadgeIconRenderer {
     public static let maxMenuBarHeight: CGFloat = 22.0
     public static let defaultIconSize: CGFloat = CGFloat(AppPreferences.defaultIconSize)
     public static let defaultBadgeSize: CGFloat = CGFloat(AppPreferences.defaultBadgeSize)
+    public static let defaultDotSize: CGFloat = CGFloat(AppPreferences.defaultDotSize)
 
     public struct RenderOptions: Equatable, Sendable {
         public var style: BadgeDisplayStyle
         public var countFormat: CountTextFormat
         public var iconSize: CGFloat
         public var badgeSize: CGFloat
+        public var dotSize: CGFloat
         public var grayOutWhenNoUnread: Bool
         public var invertInDarkMode: Bool
         public var monochrome: Bool
@@ -22,6 +24,7 @@ public enum BadgeIconRenderer {
             countFormat: CountTextFormat = .parenthesized,
             iconSize: CGFloat = BadgeIconRenderer.defaultIconSize,
             badgeSize: CGFloat = BadgeIconRenderer.defaultBadgeSize,
+            dotSize: CGFloat = BadgeIconRenderer.defaultDotSize,
             grayOutWhenNoUnread: Bool = false,
             invertInDarkMode: Bool = false,
             monochrome: Bool = false,
@@ -31,6 +34,7 @@ public enum BadgeIconRenderer {
             self.countFormat = countFormat
             self.iconSize = min(max(iconSize, CGFloat(AppPreferences.iconSizeRange.lowerBound)), CGFloat(AppPreferences.iconSizeRange.upperBound))
             self.badgeSize = min(max(badgeSize, CGFloat(AppPreferences.badgeSizeRange.lowerBound)), CGFloat(AppPreferences.badgeSizeRange.upperBound))
+            self.dotSize = min(max(dotSize, CGFloat(AppPreferences.dotSizeRange.lowerBound)), CGFloat(AppPreferences.dotSizeRange.upperBound))
             self.grayOutWhenNoUnread = grayOutWhenNoUnread
             self.invertInDarkMode = invertInDarkMode
             self.monochrome = monochrome
@@ -64,7 +68,8 @@ public enum BadgeIconRenderer {
                 on: preparedIcon,
                 badge: badge,
                 iconSize: options.iconSize,
-                badgeSize: options.badgeSize
+                badgeSize: options.badgeSize,
+                dotSize: options.dotSize
             )
             return RenderedStatusItemContent(image: image, title: "")
 
@@ -73,7 +78,7 @@ public enum BadgeIconRenderer {
                 on: preparedIcon,
                 hasUnread: badge.hasUnread,
                 iconSize: options.iconSize,
-                badgeSize: options.badgeSize
+                dotSize: options.dotSize
             )
             return RenderedStatusItemContent(image: image, title: "")
 
@@ -82,7 +87,7 @@ public enum BadgeIconRenderer {
                 let image = drawSideDot(
                     nextTo: preparedIcon,
                     iconSize: options.iconSize,
-                    badgeSize: options.badgeSize
+                    dotSize: options.dotSize
                 )
                 return RenderedStatusItemContent(image: image, title: "")
             } else {
@@ -137,19 +142,20 @@ public enum BadgeIconRenderer {
     }
 
     /// Draws a Dock-style red pill/circle badge (or red dot) at the top-right corner of the icon.
-    /// Dynamically adapts canvas dimensions to `iconSize` and `badgeSize` so counts are never clipped.
+    /// Dynamically adapts canvas dimensions to `iconSize`, `badgeSize`, and `dotSize` so badges never clip.
     public static func drawRedBadgeOverlay(
         on icon: NSImage,
         badge: BadgeValue,
         iconSize: CGFloat = BadgeIconRenderer.defaultIconSize,
-        badgeSize: CGFloat = BadgeIconRenderer.defaultBadgeSize
+        badgeSize: CGFloat = BadgeIconRenderer.defaultBadgeSize,
+        dotSize: CGFloat = BadgeIconRenderer.defaultDotSize
     ) -> NSImage {
         guard badge.hasUnread else {
             return drawResizedIcon(icon, size: NSSize(width: iconSize, height: iconSize))
         }
 
         guard let label = badge.compactOverlayLabel else {
-            return drawSimpleDotOverlay(on: icon, hasUnread: true, iconSize: iconSize, badgeSize: badgeSize)
+            return drawSimpleDotOverlay(on: icon, hasUnread: true, iconSize: iconSize, dotSize: dotSize)
         }
 
         let fontScale: CGFloat = label.count >= 3 ? 0.64 : 0.74
@@ -205,13 +211,13 @@ public enum BadgeIconRenderer {
         on icon: NSImage,
         hasUnread: Bool,
         iconSize: CGFloat = BadgeIconRenderer.defaultIconSize,
-        badgeSize: CGFloat = BadgeIconRenderer.defaultBadgeSize
+        dotSize: CGFloat = BadgeIconRenderer.defaultDotSize
     ) -> NSImage {
         guard hasUnread else {
             return drawResizedIcon(icon, size: NSSize(width: iconSize, height: iconSize))
         }
 
-        let dotDiameter = min(max(badgeSize * 0.70, 5.0), 12.0)
+        let dotDiameter = min(max(dotSize, 4.0), 12.0)
         let canvasHeight = min(maxMenuBarHeight, max(iconSize + 2.0, dotDiameter + 2.0))
         let iconDrawSize = min(iconSize, canvasHeight - 1.0)
         let canvasWidth = ceil(iconDrawSize + max(2.0, dotDiameter * 0.35))
@@ -246,9 +252,9 @@ public enum BadgeIconRenderer {
     public static func drawSideDot(
         nextTo icon: NSImage,
         iconSize: CGFloat = BadgeIconRenderer.defaultIconSize,
-        badgeSize: CGFloat = BadgeIconRenderer.defaultBadgeSize
+        dotSize: CGFloat = BadgeIconRenderer.defaultDotSize
     ) -> NSImage {
-        let dotDiameter = min(max(badgeSize * 0.62, 5.0), 11.0)
+        let dotDiameter = min(max(dotSize, 4.0), 12.0)
         let spacing: CGFloat = 3.5
         let canvasHeight = min(maxMenuBarHeight, max(iconSize + 2.0, dotDiameter + 2.0))
         let canvasSize = NSSize(width: ceil(iconSize + spacing + dotDiameter + 1.0), height: canvasHeight)

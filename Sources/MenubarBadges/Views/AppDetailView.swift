@@ -85,6 +85,7 @@ struct AppDetailView: View {
                                     countFormat: settings.preferences.countTextFormat,
                                     iconSize: CGFloat(settings.preferences.iconSize),
                                     badgeSize: CGFloat(settings.preferences.badgeSize),
+                                    dotSize: CGFloat(settings.preferences.dotSize),
                                     grayOutWhenNoUnread: settings.preferences.grayOutWhenNoUnread,
                                     invertInDarkMode: currentApp.invertIconInDarkMode,
                                     monochrome: currentApp.monochromeIcon,
